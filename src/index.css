@@ -135,8 +135,8 @@
 @layer components {
   /* Task Completion Animation */
   .task-complete {
-    @apply transform transition-all duration-500 ease-[var(--bounce-spring)];
-    animation: completeTask 0.6s ease-[var(--bounce-spring)];
+    @apply transform transition-all duration-500 ease-bounce-spring;
+    animation: completeTask 0.6s var(--bounce-spring);
   }
 
   .task-complete-glow {
@@ -150,7 +150,7 @@
 
   /* Badge Unlock Animation */
   .badge-unlock {
-    animation: badgeUnlock 0.8s ease-[var(--bounce-spring)];
+    animation: badgeUnlock 0.8s var(--bounce-spring);
   }
 
   /* Voice Recording Pulse */

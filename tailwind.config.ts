@@ -109,6 +109,9 @@ export default {
 					}
 				}
 			},
+			transitionTimingFunction: {
+				'bounce-spring': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
