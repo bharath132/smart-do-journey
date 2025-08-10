@@ -458,7 +458,16 @@ const TodoApp = () => {
         <div className="flex items-center justify-between mb-4 gap-2">
           <div className="flex items-center gap-2">
             <ListTodo className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Your Tasks</span>
+            <Button 
+              variant="ghost" 
+              className="font-semibold p-0 h-auto hover:bg-transparent"
+              onClick={() => {
+                // Refresh tasks or scroll to tasks section
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              Your Tasks
+            </Button>
             {isGuest && (
               <Badge variant="secondary" className="ml-2">
                 <User className="h-3 w-3 mr-1" />
