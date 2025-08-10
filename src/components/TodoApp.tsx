@@ -462,11 +462,8 @@ const TodoApp = () => {
               variant="ghost" 
               className="font-semibold p-0 h-auto hover:bg-transparent"
               onClick={() => {
-                // Scroll to the tasks section
-                const tasksSection = document.getElementById('tasks-section');
-                if (tasksSection) {
-                  tasksSection.scrollIntoView({ behavior: 'smooth' });
-                }
+                // Refresh tasks or scroll to tasks section
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
               Your Tasks
@@ -714,7 +711,7 @@ const TodoApp = () => {
         </Card>
 
         {/* Tasks List with Filters */}
-        <div id="tasks-section" className="space-y-6">
+        <div className="space-y-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold title-glow">Your Tasks</h2>
