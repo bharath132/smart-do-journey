@@ -4,9 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2, Calendar as CalendarIcon, Clock, ListTodo } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import AuthButtons from "@/components/AuthButtons";
+import SettingsMenu, { type AppSettings } from "@/components/SettingsMenu";
+import AnimatedBackground from "@/components/AnimatedBackground";
+import ProfileModal from "@/components/ProfileModal";
+import ResponsiveSidebar from "@/components/ResponsiveSidebar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -54,6 +59,7 @@ const TodoApp = () => {
   const [endTime, setEndTime] = useState<string>("");
   
   const { toast } = useToast();
+  const [settings, setSettings] = useState<AppSettings>({ enableConfetti: true });
   const recognitionRef = useRef<any>(null);
 
   // Load data from localStorage on component mount
@@ -263,7 +269,7 @@ const TodoApp = () => {
   const finishedCount = tasks.filter(t => t.completed).length;
 
   return (
-    <div className="min-h-screen bg-background p-4 relative overflow-hidden animated-gradient">
+    <div className="min-h-screen bg-background p-0 md:p-4 relative overflow-hidden animated-gradient">
       {/* Background decoration */}
       <div className="fixed inset-0 opacity-5 pointer-events-none">
         <div className="absolute top-20 left-20 w-64 h-64 bg-primary rounded-full blur-3xl"></div>
@@ -271,7 +277,7 @@ const TodoApp = () => {
       </div>
 
       {/* Confetti effect */}
-      {showConfetti && (
+      {settings.enableConfetti && showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50">
           {[...Array(20)].map((_, i) => (
             <div
@@ -287,19 +293,31 @@ const TodoApp = () => {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto relative z-10">
+      <ResponsiveSidebar>
+      <div className="max-w-4xl mx-auto relative z-10 px-3 md:px-0">
+        {/* Background */}
+        <AnimatedBackground />
+
         {/* Top bar */}
-        <div className="flex justify-end mb-4">
-          <ThemeSwitcher />
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <div className="flex items-center gap-2">
+            <ListTodo className="h-5 w-5 text-primary" />
+            <span className="font-semibold">Your Tasks</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <SettingsMenu onChange={setSettings} />
+            <ThemeSwitcher />
+            <AuthButtons />
+          </div>
         </div>
 
         {/* Header with stats */
         }
         <div className="text-center mb-8 fade-in-up">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Gamified Todo
+            Gamified To-Do List
           </h1>
-          <p className="text-muted-foreground">Turn your productivity into an adventure!</p>
+          <p className="text-muted-foreground">Turn your Productivity Time into an Adventure!</p>
         </div>
 
         {/* User Stats Dashboard */}
@@ -353,7 +371,7 @@ const TodoApp = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" />
-              Add New Task
+              New Task
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -420,7 +438,7 @@ const TodoApp = () => {
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2">
                       <CalendarIcon className="h-4 w-4" />
-                      {startDate ? startDate.toLocaleDateString() : 'Pick date'}
+                      {startDate ? startDate.toLocaleDateString() : 'Start date'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent align="start" className="p-0">
@@ -430,14 +448,14 @@ const TodoApp = () => {
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-32" />
-                </div>
+                </div> 
 
                 <span className="ml-2 text-sm font-medium text-muted-foreground">End:</span>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2">
                       <CalendarIcon className="h-4 w-4" />
-                      {endDate ? endDate.toLocaleDateString() : 'Pick date'}
+                      {endDate ? endDate.toLocaleDateString() : 'End date'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent align="start" className="p-0">
@@ -446,7 +464,7 @@ const TodoApp = () => {
                 </Popover>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-muted-foreground" />
-                  <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-32" />
+                    <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}  className="w-32" /> 
                 </div>
               </div>
             </div>
@@ -627,6 +645,8 @@ const TodoApp = () => {
           })}
         </div>
       </div>
+      </ResponsiveSidebar>
+      <ProfileModal />
     </div>
   );
 };

@@ -279,3 +279,10 @@
   0%, 100% { transform: scale(1) rotate(-2deg); }
   50% { transform: scale(1.05) rotate(2deg); }
 }
+
+/* Floating blob animation for AnimatedBackground */
+@keyframes float {
+  0% { transform: translateY(0) }
+  50% { transform: translateY(-10px) }
+  100% { transform: translateY(0) }
+}
