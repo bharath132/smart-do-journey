@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2, Calendar as CalendarIcon, Clock, ListTodo } from 'lucide-react';
+import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2, Calendar as CalendarIcon, Clock, ListTodo, User } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import AuthButtons from "@/components/AuthButtons";
 import SettingsMenu, { type AppSettings } from "@/components/SettingsMenu";
@@ -15,6 +16,7 @@ import ResponsiveSidebar from "@/components/ResponsiveSidebar";
 import TaskEditDialog from "@/components/TaskEditDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Task {
   id: string;
@@ -66,8 +68,10 @@ const TodoApp = () => {
   const [reminderTime, setReminderTime] = useState<string>('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   
   const { toast } = useToast();
+  const { user, isGuest } = useAuth();
   const [settings, setSettings] = useState<AppSettings>({ enableConfetti: true });
   const recognitionRef = useRef<any>(null);
 
@@ -109,6 +113,11 @@ const TodoApp = () => {
   useEffect(() => {
     localStorage.setItem('gamified-tasks', JSON.stringify(tasks));
   }, [tasks]);
+
+  // Debug deletingTaskId changes
+  useEffect(() => {
+    console.log('deletingTaskId changed to:', deletingTaskId);
+  }, [deletingTaskId]);
 
   useEffect(() => {
     localStorage.setItem('gamified-stats', JSON.stringify(userStats));
@@ -206,6 +215,39 @@ const TodoApp = () => {
     toast({
       title: "Task Updated! ✏️",
       description: "Your task has been updated successfully"
+    });
+  };
+
+  // Delete task
+  const deleteTask = (taskId: string) => {
+    console.log('Delete task called with ID:', taskId);
+    setDeletingTaskId(taskId);
+  };
+
+  const confirmDeleteTask = () => {
+    console.log('Confirm delete called, deletingTaskId:', deletingTaskId);
+    if (!deletingTaskId) return;
+    
+    const task = tasks.find(t => t.id === deletingTaskId);
+    if (!task) return;
+
+    console.log('Deleting task:', task);
+    setTasks(prev => prev.filter(t => t.id !== deletingTaskId));
+    
+    // If task was completed, we might want to adjust XP (optional)
+    if (task.completed) {
+      // Optionally remove XP gained from this task
+      // This is a design decision - you can comment this out if you want to keep XP
+      setUserStats(prev => ({
+        ...prev,
+        xp: Math.max(0, prev.xp - getXPForTask(task.priority))
+      }));
+    }
+
+    setDeletingTaskId(null);
+    toast({
+      title: "Task Deleted! 🗑️",
+      description: "Task has been removed from your list"
     });
   };
 
@@ -388,6 +430,12 @@ const TodoApp = () => {
           <div className="flex items-center gap-2">
             <ListTodo className="h-5 w-5 text-primary" />
             <span className="font-semibold">Your Tasks</span>
+            {isGuest && (
+              <Badge variant="secondary" className="ml-2">
+                <User className="h-3 w-3 mr-1" />
+                Guest Mode
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <SettingsMenu onChange={setSettings} />
@@ -396,13 +444,27 @@ const TodoApp = () => {
           </div>
         </div>
 
-        {/* Header with stats */
-        }
+        {/* Header with stats */}
         <div className="text-center mb-8 fade-in-up">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Gamified To-Do List
           </h1>
           <p className="text-muted-foreground">Turn your Productivity Time into an Adventure!</p>
+          {isGuest && (
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-dashed">
+              <p className="text-sm text-muted-foreground">
+                🎯 You're in Guest Mode. Your tasks will be saved locally. 
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="p-0 h-auto text-primary ml-1"
+                  onClick={() => window.location.href = '/'}
+                >
+                  Sign up to sync across devices
+                </Button>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* User Stats Dashboard */}
@@ -768,6 +830,15 @@ const TodoApp = () => {
                           </Button>
                         )}
                         
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteTask(task.id)}
+                          className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          Delete
+                        </Button>
+                        
                         {task.completed && (
                           <div className="text-right text-xs text-muted-foreground">
                             <p className="font-medium text-success">Completed</p>
@@ -793,6 +864,32 @@ const TodoApp = () => {
         onSave={saveEditedTask}
         customCategories={customCategories}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingTaskId} onOpenChange={(open) => !open && setDeletingTaskId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Task</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeletingTaskId(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteTask}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

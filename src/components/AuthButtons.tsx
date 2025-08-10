@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,33 +12,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AuthButtons() {
+  const navigate = useNavigate();
+  const { user, isGuest, signIn, signUp, signOut, enableGuestMode, disableGuestMode } = useAuth();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [age, setAge] = useState("");
   const [confirm, setConfirm] = useState("");
-
-  useEffect(() => {
-    let isMounted = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (!isMounted) return;
-      setUserEmail(data.user?.email ?? null);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserEmail(session?.user?.email ?? null);
-    });
-    return () => {
-      isMounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
 
   async function handleAuth() {
     setLoading(true);
@@ -48,8 +35,7 @@ export default function AuthButtons() {
         if (!email || !password) {
           throw new Error("Please enter email and password");
         }
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await signIn(email, password);
       } else {
         if (!email || !password) {
           throw new Error("Email and password are required");
@@ -61,18 +47,7 @@ export default function AuthButtons() {
         if (age && (isNaN(parsedAge as number) || parsedAge! <= 0)) {
           throw new Error("Please enter a valid age");
         }
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              username: username || undefined,
-              age: parsedAge,
-            },
-          },
-        });
-        if (error) throw error;
+        await signUp(email, password, username || undefined, parsedAge);
       }
       setOpen(false);
       setEmail("");
@@ -116,16 +91,33 @@ export default function AuthButtons() {
     }
   }
 
-  if (userEmail) {
+  if (user || isGuest) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground hidden sm:inline">{userEmail}</span>
+        {user && (
+          <span className="text-sm text-muted-foreground hidden sm:inline">
+            {user.email}
+          </span>
+        )}
+        {isGuest && (
+          <span className="text-sm text-muted-foreground hidden sm:inline">
+            Guest Mode
+          </span>
+        )}
         <Button
           variant="outline"
           size="sm"
-          onClick={() => supabase.auth.signOut()}
+          onClick={async () => {
+            if (isGuest) {
+              disableGuestMode();
+            } else {
+              await signOut();
+            }
+            // Navigate back to welcome page
+            navigate('/');
+          }}
         >
-          Sign out
+          {isGuest ? "Exit Guest Mode" : "Sign out"}
         </Button>
       </div>
     );
