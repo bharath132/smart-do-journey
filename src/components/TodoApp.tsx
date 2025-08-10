@@ -17,21 +17,8 @@ import TaskEditDialog from "@/components/TaskEditDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
-interface Task {
-  id: string;
-  text: string;
-  completed: boolean;
-  category: string;
-  priority: 'high' | 'medium' | 'low';
-  createdAt: Date;
-  completedAt?: Date;
-  startDate?: Date;
-  endDate?: Date;
-  startTime?: string;
-  endTime?: string;
-  reminderTime?: Date;
-}
+import type { Task } from "@/types/task";
+import { fetchTasksForUser, insertTaskForUser, updateTaskForUser, deleteTaskForUser } from "@/integrations/supabase/tasks";
 
 interface UserStats {
   xp: number;
@@ -75,44 +62,58 @@ const TodoApp = () => {
   const [settings, setSettings] = useState<AppSettings>({ enableConfetti: true });
   const recognitionRef = useRef<any>(null);
 
-  // Load data from localStorage on component mount
+  // Load tasks from Supabase for authenticated users; otherwise from localStorage.
   useEffect(() => {
-    const savedTasks = localStorage.getItem('gamified-tasks');
-    const savedStats = localStorage.getItem('gamified-stats');
-    const savedCategories = localStorage.getItem('gamified-categories');
-    
-    if (savedTasks) {
-      const parsedTasks = JSON.parse(savedTasks).map((task: any) => ({
-        ...task,
-        createdAt: new Date(task.createdAt),
-        completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
-        startDate: task.startDate ? new Date(task.startDate) : undefined,
-        endDate: task.endDate ? new Date(task.endDate) : undefined,
-        startTime: task.startTime ?? undefined,
-        endTime: task.endTime ?? undefined,
-        reminderTime: task.reminderTime ? new Date(task.reminderTime) : undefined,
-      }));
-      setTasks(parsedTasks);
-    }
-    
-    if (savedStats) {
-      setUserStats(JSON.parse(savedStats));
-    }
-    
-    if (savedCategories) {
-      setCustomCategories(JSON.parse(savedCategories));
-    }
-    
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
+    const load = async () => {
+      try {
+        if (user && !isGuest) {
+          const remoteTasks = await fetchTasksForUser(user.id);
+          setTasks(remoteTasks);
+        } else {
+          const savedTasks = localStorage.getItem('gamified-tasks');
+          if (savedTasks) {
+            const parsedTasks = JSON.parse(savedTasks).map((task: any) => ({
+              ...task,
+              createdAt: new Date(task.createdAt),
+              completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
+              startDate: task.startDate ? new Date(task.startDate) : undefined,
+              endDate: task.endDate ? new Date(task.endDate) : undefined,
+              startTime: task.startTime ?? undefined,
+              endTime: task.endTime ?? undefined,
+              reminderTime: task.reminderTime ? new Date(task.reminderTime) : undefined,
+            }));
+            setTasks(parsedTasks);
+          } else {
+            setTasks([]);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load tasks:', e);
+      }
+
+      // Load stats and categories from localStorage in all modes (unchanged behavior)
+      const savedStats = localStorage.getItem('gamified-stats');
+      if (savedStats) {
+        setUserStats(JSON.parse(savedStats));
+      }
+      const savedCategories = localStorage.getItem('gamified-categories');
+      if (savedCategories) {
+        setCustomCategories(JSON.parse(savedCategories));
+      }
+
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    };
+    load();
+  }, [user, isGuest]);
 
   // Save to localStorage whenever tasks or stats change
   useEffect(() => {
-    localStorage.setItem('gamified-tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (!user || isGuest) {
+      localStorage.setItem('gamified-tasks', JSON.stringify(tasks));
+    }
+  }, [tasks, user, isGuest]);
 
   // Debug deletingTaskId changes
   useEffect(() => {
@@ -179,6 +180,14 @@ const TodoApp = () => {
     };
 
     setTasks(prev => [newTaskObj, ...prev]);
+
+    // Persist to Supabase if authenticated
+    if (user && !isGuest) {
+      insertTaskForUser(user.id, newTaskObj).catch((e) => {
+        console.error('Failed to insert task:', e);
+      });
+    }
+
     setNewTask('');
     setStartDate(undefined);
     setEndDate(undefined);
@@ -212,6 +221,13 @@ const TodoApp = () => {
 
   const saveEditedTask = (updatedTask: Task) => {
     setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+
+    if (user && !isGuest) {
+      updateTaskForUser(user.id, updatedTask).catch((e) => {
+        console.error('Failed to update task:', e);
+      });
+    }
+
     toast({
       title: "Task Updated! ✏️",
       description: "Your task has been updated successfully"
@@ -233,6 +249,12 @@ const TodoApp = () => {
 
     console.log('Deleting task:', task);
     setTasks(prev => prev.filter(t => t.id !== deletingTaskId));
+
+    if (user && !isGuest) {
+      deleteTaskForUser(user.id, deletingTaskId).catch((e) => {
+        console.error('Failed to delete task:', e);
+      });
+    }
     
     // If task was completed, we might want to adjust XP (optional)
     if (task.completed) {
@@ -259,11 +281,18 @@ const TodoApp = () => {
     const xpGained = getXPForTask(task.priority);
     const currentDate = new Date().toDateString();
     
+    const updatedTask: Task = { ...task, completed: true, completedAt: new Date() };
     setTasks(prev => prev.map(t => 
       t.id === taskId 
-        ? { ...t, completed: true, completedAt: new Date() }
+        ? updatedTask
         : t
     ));
+
+    if (user && !isGuest) {
+      updateTaskForUser(user.id, updatedTask).catch((e) => {
+        console.error('Failed to mark task complete:', e);
+      });
+    }
 
     setUserStats(prev => {
       const newXP = prev.xp + xpGained;
@@ -793,11 +822,13 @@ const TodoApp = () => {
                           </Badge>
                           <Badge
                             variant="outline"
-                            className={`text-xs ${{
-                              high: 'border-priority-high text-priority-high',
-                              medium: 'border-priority-medium text-priority-medium',
-                              low: 'border-priority-low text-priority-low',
-                            }[task.priority]}`}
+                            className={`text-xs ${
+                              {
+                                high: 'border-priority-high text-priority-high',
+                                medium: 'border-priority-medium text-priority-medium',
+                                low: 'border-priority-low text-priority-low',
+                              }[task.priority]
+                            }`}
                           >
                             {task.priority} • {getXPForTask(task.priority)} XP
                           </Badge>

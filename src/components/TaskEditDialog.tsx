@@ -15,21 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Calendar as CalendarIcon, Clock, Brain, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-interface Task {
-  id: string;
-  text: string;
-  completed: boolean;
-  category: string;
-  priority: 'high' | 'medium' | 'low';
-  createdAt: Date;
-  completedAt?: Date;
-  startDate?: Date;
-  endDate?: Date;
-  startTime?: string;
-  endTime?: string;
-  reminderTime?: Date;
-}
+import type { Task } from "@/types/task";
 
 interface TaskEditDialogProps {
   task: Task | null;

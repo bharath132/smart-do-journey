@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
+import type { Task } from '@/types/task';
+import { bulkInsertTasksForUser } from '@/integrations/supabase/tasks';
 
 interface AuthContextType {
   user: User | null;
@@ -60,6 +62,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (session?.user) {
           setIsGuest(false);
           localStorage.removeItem('guest-mode');
+
+          // One-time migration: move local tasks to Supabase for this user if not migrated yet
+          try {
+            const migrateKey = `migrated-tasks-${session.user.id}`;
+            if (!localStorage.getItem(migrateKey)) {
+              const savedTasks = localStorage.getItem('gamified-tasks');
+              if (savedTasks) {
+                const parsed: any[] = JSON.parse(savedTasks);
+                const tasks: Task[] = parsed.map((t: any) => ({
+                  id: t.id,
+                  text: t.text,
+                  completed: !!t.completed,
+                  category: t.category,
+                  priority: t.priority,
+                  createdAt: new Date(t.createdAt),
+                  completedAt: t.completedAt ? new Date(t.completedAt) : undefined,
+                  startDate: t.startDate ? new Date(t.startDate) : undefined,
+                  endDate: t.endDate ? new Date(t.endDate) : undefined,
+                  startTime: t.startTime ?? undefined,
+                  endTime: t.endTime ?? undefined,
+                  reminderTime: t.reminderTime ? new Date(t.reminderTime) : undefined,
+                }));
+                if (tasks.length) {
+                  await bulkInsertTasksForUser(session.user.id, tasks);
+                }
+                localStorage.setItem(migrateKey, 'true');
+              }
+            }
+          } catch (e) {
+            console.error('Task migration failed:', e);
+          }
         }
         
         setIsLoading(false);
