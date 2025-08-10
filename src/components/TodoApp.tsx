@@ -12,7 +12,7 @@ interface Task {
   id: string;
   text: string;
   completed: boolean;
-  category: 'work' | 'personal' | 'shopping';
+  category: 'work' | 'personal' | 'shopping' | 'other';
   priority: 'high' | 'medium' | 'low';
   createdAt: Date;
   completedAt?: Date;
@@ -285,7 +285,8 @@ const TodoApp = () => {
           <ThemeSwitcher />
         </div>
 
-        {/* Header with stats */}
+        {/* Header with stats */
+        }
         <div className="text-center mb-8 fade-in-up">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Gamified Todo
@@ -388,15 +389,20 @@ const TodoApp = () => {
             <div className="flex gap-2 flex-wrap">
               <div className="flex gap-1">
                 <span className="text-sm font-medium text-muted-foreground">Category:</span>
-                {(['work', 'personal', 'shopping'] as const).map(cat => (
+                {([
+                  { key: 'work', label: 'Work' },
+                  { key: 'personal', label: 'Personal' },
+                  { key: 'shopping', label: 'Shopping' },
+                  { key: 'other', label: 'Other Option' },
+                ] as const).map(({ key, label }) => (
                   <Button
-                    key={cat}
-                    variant={selectedCategory === cat ? "default" : "outline"}
+                    key={key}
+                    variant={selectedCategory === key ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setSelectedCategory(cat)}
+                    onClick={() => setSelectedCategory(key as Task['category'])}
                     className="capitalize"
                   >
-                    {cat}
+                    {label}
                   </Button>
                 ))}
               </div>
@@ -451,86 +457,103 @@ const TodoApp = () => {
           )}
         </Card>
 
-        {/* Tasks List */}
-        <div className="space-y-4">
+        {/* Tasks List - separated by category */}
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Your Tasks</h2>
+            <h2 className="text-xl font-semibold title-glow">Your Tasks</h2>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
               <Share2 className="h-4 w-4" />
               Share List
             </Button>
           </div>
 
-          {tasks.length === 0 ? (
-            <Card className="bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground mb-4">No tasks yet! Add your first task to start earning XP.</p>
-                <Button onClick={() => addTask("Complete my first task!")} variant="outline">
-                  Add Sample Task
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {tasks.map(task => (
-                <Card
-                  key={task.id}
-                  className={`bg-card/80 backdrop-blur-sm transition-all duration-300 ${
-                    task.completed ? 'opacity-60 task-complete-glow' : 'hover:shadow-md'
-                  }`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant={task.completed ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => !task.completed && completeTask(task.id)}
-                        className={task.completed ? "task-complete" : ""}
-                        disabled={task.completed}
-                      >
-                        ✓
-                      </Button>
-                      
-                      <div className="flex-1">
-                        <p className={`${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                          {task.text}
-                        </p>
-                        <div className="flex gap-2 mt-1">
-                          <Badge
-                            variant="secondary"
-                            className={`text-xs ${{
-                              work: 'bg-category-work/20 text-category-work border-category-work/30',
-                              personal: 'bg-category-personal/20 text-category-personal border-category-personal/30',
-                              shopping: 'bg-category-shopping/20 text-category-shopping border-category-shopping/30'
-                            }[task.category]}`}
-                          >
-                            {task.category}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${{
-                              high: 'border-priority-high text-priority-high',
-                              medium: 'border-priority-medium text-priority-medium',
-                              low: 'border-priority-low text-priority-low'
-                            }[task.priority]}`}
-                          >
-                            {task.priority} • {getXPForTask(task.priority)} XP
-                          </Badge>
-                        </div>
-                      </div>
+          {([
+            { key: 'work', label: 'Work' },
+            { key: 'personal', label: 'Personal' },
+            { key: 'shopping', label: 'Shopping' },
+            { key: 'other', label: 'Other Option' },
+          ] as const).map(({ key, label }) => {
+            const categoryTasks = tasks.filter((t) => t.category === (key as Task['category']))
+            return (
+              <div key={key} className="space-y-3 fade-in-up">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-medium">{label}</h3>
+                  <Badge variant="secondary" className="text-xs">
+                    {categoryTasks.length}
+                  </Badge>
+                </div>
 
-                      {task.completed && (
-                        <div className="text-right text-xs text-muted-foreground">
-                          <p>+{getXPForTask(task.priority)} XP</p>
-                          <p>{task.completedAt?.toLocaleTimeString()}</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                {categoryTasks.length === 0 ? (
+                  <Card className="bg-card/80 backdrop-blur-sm">
+                    <CardContent className="p-6 text-sm text-muted-foreground">
+                      No tasks in this category yet.
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {categoryTasks.map((task) => (
+                      <Card
+                        key={task.id}
+                        className={`bg-card/80 backdrop-blur-sm transition-all duration-300 lift ${
+                          task.completed ? 'opacity-60 task-complete-glow' : 'hover:shadow-md'
+                        }`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant={task.completed ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => !task.completed && completeTask(task.id)}
+                              className={task.completed ? 'task-complete' : ''}
+                              disabled={task.completed}
+                            >
+                              ✓
+                            </Button>
+
+                            <div className="flex-1">
+                              <p className={`${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                                {task.text}
+                              </p>
+                              <div className="flex gap-2 mt-1">
+                                <Badge
+                                  variant="secondary"
+                                  className={`text-xs ${{
+                                    work: 'bg-category-work/20 text-category-work border-category-work/30',
+                                    personal: 'bg-category-personal/20 text-category-personal border-category-personal/30',
+                                    shopping: 'bg-category-shopping/20 text-category-shopping border-category-shopping/30',
+                                    other: 'bg-category-other/20 text-category-other border-category-other/30',
+                                  }[task.category]}`}
+                                >
+                                  {label}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs ${{
+                                    high: 'border-priority-high text-priority-high',
+                                    medium: 'border-priority-medium text-priority-medium',
+                                    low: 'border-priority-low text-priority-low',
+                                  }[task.priority]}`}
+                                >
+                                  {task.priority} • {getXPForTask(task.priority)} XP
+                                </Badge>
+                              </div>
+                            </div>
+
+                            {task.completed && (
+                              <div className="text-right text-xs text-muted-foreground">
+                                <p>+{getXPForTask(task.priority)} XP</p>
+                                <p>{task.completedAt?.toLocaleTimeString()}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
