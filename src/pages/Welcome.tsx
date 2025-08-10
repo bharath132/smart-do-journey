@@ -300,7 +300,7 @@ const Welcome: React.FC = () => {
 
          {/* Footer */}
          <footer className="relative z-10 text-center py-8 text-muted-foreground">
-           <p>&copy; 2024 SmartDo Journey. Built BY SPARKLE</p>
+           <p>&copy; 2024 SmartDo Journey. Built by SPARKLE</p>
          </footer>
        </div>
      );
