@@ -138,25 +138,7 @@ const TodoApp = () => {
         newStreak = 1; // Reset streak
       }
 
-      // Check for badges
-      const newBadges = [...prev.badges];
-      const currentHour = new Date().getHours();
-      
-      if (currentHour < 9 && !newBadges.includes('Early Bird')) {
-        newBadges.push('Early Bird');
-        toast({
-          title: "🌅 Badge Unlocked!",
-          description: "Early Bird - Completed task before 9 AM!"
-        });
-      }
-      
-      if (newStreak >= 7 && !newBadges.includes('Week Warrior')) {
-        newBadges.push('Week Warrior');
-        toast({
-          title: "🔥 Badge Unlocked!",
-          description: "Week Warrior - 7 day streak!"
-        });
-      }
+      // Badge feature removed
 
       if (leveledUp) {
         setShowConfetti(true);
@@ -177,7 +159,7 @@ const TodoApp = () => {
         level: newLevel,
         streak: newStreak,
         lastTaskDate: currentDate,
-        badges: newBadges
+        badges: prev.badges
       };
     });
   };
@@ -295,7 +277,7 @@ const TodoApp = () => {
         </div>
 
         {/* User Stats Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -337,23 +319,7 @@ const TodoApp = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/80 backdrop-blur-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Badges</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-1 flex-wrap">
-                {userStats.badges.map(badge => (
-                  <Badge key={badge} variant="secondary" className="text-xs badge-unlock">
-                    {badge === 'Early Bird' ? '🌅' : '🔥'} {badge}
-                  </Badge>
-                ))}
-                {userStats.badges.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Complete tasks to earn badges!</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Badges removed */}
         </div>
 
         {/* Add Task Section */}
