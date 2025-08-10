@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 interface Task {
   id: string;
@@ -254,7 +255,7 @@ const TodoApp = () => {
   const currentXPProgress = ((userStats.xp % 100) / 100) * 100;
 
   return (
-    <div className="min-h-screen bg-background p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-background p-4 relative overflow-hidden animated-gradient">
       {/* Background decoration */}
       <div className="fixed inset-0 opacity-5 pointer-events-none">
         <div className="absolute top-20 left-20 w-64 h-64 bg-primary rounded-full blur-3xl"></div>
@@ -279,8 +280,13 @@ const TodoApp = () => {
       )}
 
       <div className="max-w-4xl mx-auto relative z-10">
+        {/* Top bar */}
+        <div className="flex justify-end mb-4">
+          <ThemeSwitcher />
+        </div>
+
         {/* Header with stats */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 fade-in-up">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Gamified Todo
           </h1>
