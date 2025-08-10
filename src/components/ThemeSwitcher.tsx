@@ -15,9 +15,6 @@ const THEMES = [
   { key: "light", label: "Light" },
   { key: "dark", label: "Dark" },
   { key: "system", label: "System" },
-  { key: "ocean", label: "Ocean" },
-  { key: "forest", label: "Forest" },
-  { key: "sunset", label: "Sunset" },
 ] as const;
 
 function enableThemeTransition() {
@@ -63,14 +60,7 @@ export default function ThemeSwitcher() {
             <span
               className="inline-block h-3 w-3 rounded-full border"
               style={{
-                background:
-                  t.key === "ocean"
-                    ? "linear-gradient(135deg, hsl(200 90% 45%) 0%, hsl(185 70% 60%) 100%)"
-                    : t.key === "forest"
-                    ? "linear-gradient(135deg, hsl(145 45% 35%) 0%, hsl(120 40% 60%) 100%)"
-                    : t.key === "sunset"
-                    ? "linear-gradient(135deg, hsl(15 85% 55%) 0%, hsl(45 90% 60%) 100%)"
-                    : "hsl(var(--primary))",
+                background: "hsl(var(--primary))",
               }}
             />
             {t.label}
