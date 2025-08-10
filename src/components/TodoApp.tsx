@@ -12,6 +12,7 @@ import SettingsMenu, { type AppSettings } from "@/components/SettingsMenu";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import ProfileModal from "@/components/ProfileModal";
 import ResponsiveSidebar from "@/components/ResponsiveSidebar";
+import TaskEditDialog from "@/components/TaskEditDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -63,6 +64,8 @@ const TodoApp = () => {
   const [customCategories, setCustomCategories] = useState<string[]>(['work', 'personal', 'shopping', 'other']);
   const [newCategory, setNewCategory] = useState('');
   const [reminderTime, setReminderTime] = useState<string>('');
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   
   const { toast } = useToast();
   const [settings, setSettings] = useState<AppSettings>({ enableConfetti: true });
@@ -189,6 +192,20 @@ const TodoApp = () => {
     toast({
       title: "Category Added! 🏷️",
       description: `"${newCategory}" category created`
+    });
+  };
+
+  // Edit task
+  const openEditDialog = (task: Task) => {
+    setEditingTask(task);
+    setShowEditDialog(true);
+  };
+
+  const saveEditedTask = (updatedTask: Task) => {
+    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    toast({
+      title: "Task Updated! ✏️",
+      description: "Your task has been updated successfully"
     });
   };
 
@@ -739,13 +756,26 @@ const TodoApp = () => {
                         </div>
                       </div>
 
-                      {task.completed && (
-                        <div className="text-right text-xs text-muted-foreground">
-                          <p className="font-medium text-success">Completed</p>
-                          <p>+{getXPForTask(task.priority)} XP</p>
-                          <p>{task.completedAt?.toLocaleTimeString()}</p>
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        {!task.completed && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(task)}
+                            className="text-xs"
+                          >
+                            Edit
+                          </Button>
+                        )}
+                        
+                        {task.completed && (
+                          <div className="text-right text-xs text-muted-foreground">
+                            <p className="font-medium text-success">Completed</p>
+                            <p>+{getXPForTask(task.priority)} XP</p>
+                            <p>{task.completedAt?.toLocaleTimeString()}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -756,6 +786,13 @@ const TodoApp = () => {
       </div>
       </ResponsiveSidebar>
       <ProfileModal />
+      <TaskEditDialog
+        task={editingTask}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onSave={saveEditedTask}
+        customCategories={customCategories}
+      />
     </div>
   );
 };
