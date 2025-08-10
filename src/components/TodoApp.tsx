@@ -475,9 +475,12 @@ const TodoApp = () => {
 
         {/* Header with stats */}
         <div className="text-center mb-8 fade-in-up">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Gamified To-Do List
-          </h1>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <img src="/favicon.ico" alt="SmartDo Journey" className="h-10 w-10" />
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Gamified To-Do List
+            </h1>
+          </div>
           <p className="text-muted-foreground">Turn your Productivity Time into an Adventure!</p>
           {isGuest && (
             <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-dashed">
