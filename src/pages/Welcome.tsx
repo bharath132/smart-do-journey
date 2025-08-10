@@ -109,10 +109,8 @@ const Welcome: React.FC = () => {
       
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between p-6">
-        {/* <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 bg-gradient-to-r from-primary to-primary/60 rounded-lg flex items-center justify-center">
-            <Target className="h-5 w-5 text-primary-foreground" />
-          </div> */}
+        <div className="flex items-center space-x-2">
+          <img src="/favicon.ico" alt="SmartDo Journey" className="h-8 w-8" />
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             SmartDo Journey
           </h1>
