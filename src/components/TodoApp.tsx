@@ -4,9 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2 } from 'lucide-react';
+import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 interface Task {
   id: string;
@@ -16,6 +18,10 @@ interface Task {
   priority: 'high' | 'medium' | 'low';
   createdAt: Date;
   completedAt?: Date;
+  startDate?: Date;
+  endDate?: Date;
+  startTime?: string;
+  endTime?: string;
 }
 
 interface UserStats {
@@ -41,6 +47,11 @@ const TodoApp = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'ongoing' | 'finished'>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
   
   const { toast } = useToast();
   const recognitionRef = useRef<any>(null);
@@ -54,7 +65,11 @@ const TodoApp = () => {
       const parsedTasks = JSON.parse(savedTasks).map((task: any) => ({
         ...task,
         createdAt: new Date(task.createdAt),
-        completedAt: task.completedAt ? new Date(task.completedAt) : undefined
+        completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
+        startDate: task.startDate ? new Date(task.startDate) : undefined,
+        endDate: task.endDate ? new Date(task.endDate) : undefined,
+        startTime: task.startTime ?? undefined,
+        endTime: task.endTime ?? undefined,
       }));
       setTasks(parsedTasks);
     }
@@ -92,11 +107,19 @@ const TodoApp = () => {
       completed: false,
       category: selectedCategory,
       priority: selectedPriority,
-      createdAt: new Date()
+      createdAt: new Date(),
+      startDate,
+      endDate,
+      startTime: startTime || undefined,
+      endTime: endTime || undefined,
     };
 
     setTasks(prev => [newTaskObj, ...prev]);
     setNewTask('');
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setStartTime("");
+    setEndTime("");
     
     toast({
       title: "Task Added! 📝",
@@ -235,6 +258,9 @@ const TodoApp = () => {
   };
 
   const currentXPProgress = ((userStats.xp % 100) / 100) * 100;
+  const allCount = tasks.length;
+  const ongoingCount = tasks.filter(t => !t.completed).length;
+  const finishedCount = tasks.filter(t => t.completed).length;
 
   return (
     <div className="min-h-screen bg-background p-4 relative overflow-hidden animated-gradient">
@@ -387,6 +413,42 @@ const TodoApp = () => {
                   </Button>
                 ))}
               </div>
+
+              <div className="flex flex-wrap gap-3 items-center">
+                <span className="text-sm font-medium text-muted-foreground">Start:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      {startDate ? startDate.toLocaleDateString() : 'Pick date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="p-0">
+                    <Calendar mode="single" selected={startDate} onSelect={setStartDate} />
+                  </PopoverContent>
+                </Popover>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-32" />
+                </div>
+
+                <span className="ml-2 text-sm font-medium text-muted-foreground">End:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      {endDate ? endDate.toLocaleDateString() : 'Pick date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="p-0">
+                    <Calendar mode="single" selected={endDate} onSelect={setEndDate} />
+                  </PopoverContent>
+                </Popover>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-32" />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -426,7 +488,32 @@ const TodoApp = () => {
         {/* Tasks List - separated by category */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold title-glow">Your Tasks</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold title-glow">Your Tasks</h2>
+              <div className="flex gap-1">
+                <Button
+                  variant={taskFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskFilter('all')}
+                >
+                  All ({allCount})
+                </Button>
+                <Button
+                  variant={taskFilter === 'ongoing' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskFilter('ongoing')}
+                >
+                  Ongoing ({ongoingCount})
+                </Button>
+                <Button
+                  variant={taskFilter === 'finished' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskFilter('finished')}
+                >
+                  Finished ({finishedCount})
+                </Button>
+              </div>
+            </div>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
               <Share2 className="h-4 w-4" />
               Share List
@@ -440,28 +527,36 @@ const TodoApp = () => {
             { key: 'other', label: 'Other Option' },
           ] as const).map(({ key, label }) => {
             const categoryTasks = tasks.filter((t) => t.category === (key as Task['category']))
+            const filteredCategoryTasks = categoryTasks.filter((t) =>
+              taskFilter === 'all' ? true : taskFilter === 'ongoing' ? !t.completed : t.completed
+            )
+            const emptyText = taskFilter === 'all'
+              ? 'No tasks in this category yet.'
+              : taskFilter === 'ongoing'
+              ? 'No ongoing tasks in this category.'
+              : 'No finished tasks in this category.'
             return (
               <div key={key} className="space-y-3 fade-in-up">
                 <div className="flex items-center gap-2">
                   <h3 className="text-lg font-medium">{label}</h3>
                   <Badge variant="secondary" className="text-xs">
-                    {categoryTasks.length}
+                    {filteredCategoryTasks.length}
                   </Badge>
                 </div>
 
-                {categoryTasks.length === 0 ? (
+                {filteredCategoryTasks.length === 0 ? (
                   <Card className="bg-card/80 backdrop-blur-sm">
                     <CardContent className="p-6 text-sm text-muted-foreground">
-                      No tasks in this category yet.
+                      {emptyText}
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="space-y-3">
-                    {categoryTasks.map((task) => (
+                    {filteredCategoryTasks.map((task) => (
                       <Card
                         key={task.id}
                         className={`bg-card/80 backdrop-blur-sm transition-all duration-300 lift ${
-                          task.completed ? 'opacity-60 task-complete-glow' : 'hover:shadow-md'
+                          task.completed ? 'task-complete-glow' : 'hover:shadow-md'
                         }`}
                       >
                         <CardContent className="p-4">
@@ -477,7 +572,7 @@ const TodoApp = () => {
                             </Button>
 
                             <div className="flex-1">
-                              <p className={`${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                              <p className="">
                                 {task.text}
                               </p>
                               <div className="flex gap-2 mt-1">
@@ -502,11 +597,21 @@ const TodoApp = () => {
                                 >
                                   {task.priority} • {getXPForTask(task.priority)} XP
                                 </Badge>
+                                {(task.startDate || task.endDate || task.startTime || task.endTime) && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.startDate ? new Date(task.startDate).toLocaleDateString() : '—'}
+                                    {task.startTime ? ` ${task.startTime}` : ''}
+                                    {" "}-{" "}
+                                    {task.endDate ? new Date(task.endDate).toLocaleDateString() : '—'}
+                                    {task.endTime ? ` ${task.endTime}` : ''}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
 
                             {task.completed && (
                               <div className="text-right text-xs text-muted-foreground">
+                                <p className="font-medium text-success">Completed</p>
                                 <p>+{getXPForTask(task.priority)} XP</p>
                                 <p>{task.completedAt?.toLocaleTimeString()}</p>
                               </div>
