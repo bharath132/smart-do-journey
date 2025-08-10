@@ -51,6 +51,7 @@
     --category-work: 210 60% 75%;
     --category-personal: 320 60% 80%;
     --category-shopping: 270 50% 80%;
+    --category-other: 260 20% 50%;
 
     /* XP & Progress */
     --xp-bar: 60 80% 70%;
@@ -120,6 +121,73 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  /* Additional named themes (class-based via next-themes) */
+  .ocean {
+    --background: 205 80% 96%;
+    --foreground: 210 25% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 25% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 25% 20%;
+    --primary: 200 90% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 190 60% 80%;
+    --secondary-foreground: 200 40% 20%;
+    --muted: 200 40% 92%;
+    --muted-foreground: 210 20% 45%;
+    --accent: 185 70% 80%;
+    --accent-foreground: 190 40% 20%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 200 30% 85%;
+    --input: 200 30% 92%;
+    --ring: 200 90% 45%;
+  }
+
+  .forest {
+    --background: 140 30% 96%;
+    --foreground: 140 25% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 140 25% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 25% 15%;
+    --primary: 145 45% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 100 30% 85%;
+    --secondary-foreground: 140 25% 20%;
+    --muted: 120 20% 92%;
+    --muted-foreground: 140 10% 35%;
+    --accent: 35 85% 70%;
+    --accent-foreground: 30 40% 20%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 120 20% 85%;
+    --input: 120 20% 92%;
+    --ring: 145 45% 35%;
+  }
+
+  .sunset {
+    --background: 20 70% 97%;
+    --foreground: 15 30% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 15 30% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 15 30% 20%;
+    --primary: 15 85% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 330 70% 85%;
+    --secondary-foreground: 330 30% 25%;
+    --muted: 20 40% 92%;
+    --muted-foreground: 15 25% 40%;
+    --accent: 45 90% 70%;
+    --accent-foreground: 45 30% 25%;
+    --destructive: 0 70% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 20 30% 85%;
+    --input: 20 30% 92%;
+    --ring: 15 85% 55%;
+  }
 }
 
 @layer base {
@@ -133,6 +201,15 @@
 }
 
 @layer components {
+  /* Smooth theme change helper: add/remove .theme-transition on <html> while switching */
+  .theme-transition *, .theme-transition {
+    transition: background-color 200ms var(--smooth-ease),
+      color 200ms var(--smooth-ease),
+      border-color 200ms var(--smooth-ease),
+      fill 200ms var(--smooth-ease),
+      stroke 200ms var(--smooth-ease);
+  }
+
   /* Task Completion Animation */
   .task-complete {
     @apply transform transition-all duration-500 ease-bounce-spring;
@@ -201,4 +278,11 @@
 @keyframes streakFire {
   0%, 100% { transform: scale(1) rotate(-2deg); }
   50% { transform: scale(1.05) rotate(2deg); }
+}
+
+/* Floating blob animation for AnimatedBackground */
+@keyframes float {
+  0% { transform: translateY(0) }
+  50% { transform: translateY(-10px) }
+  100% { transform: translateY(0) }
 }

@@ -4,17 +4,29 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2 } from 'lucide-react';
+import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2, Calendar as CalendarIcon, Clock, ListTodo } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
+import AuthButtons from "@/components/AuthButtons";
+import SettingsMenu, { type AppSettings } from "@/components/SettingsMenu";
+import AnimatedBackground from "@/components/AnimatedBackground";
+import ProfileModal from "@/components/ProfileModal";
+import ResponsiveSidebar from "@/components/ResponsiveSidebar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 interface Task {
   id: string;
   text: string;
   completed: boolean;
-  category: 'work' | 'personal' | 'shopping';
+  category: 'work' | 'personal' | 'shopping' | 'other';
   priority: 'high' | 'medium' | 'low';
   createdAt: Date;
   completedAt?: Date;
+  startDate?: Date;
+  endDate?: Date;
+  startTime?: string;
+  endTime?: string;
 }
 
 interface UserStats {
@@ -40,8 +52,14 @@ const TodoApp = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [showAISuggestions, setShowAISuggestions] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'ongoing' | 'finished'>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
   
   const { toast } = useToast();
+  const [settings, setSettings] = useState<AppSettings>({ enableConfetti: true });
   const recognitionRef = useRef<any>(null);
 
   // Load data from localStorage on component mount
@@ -53,7 +71,11 @@ const TodoApp = () => {
       const parsedTasks = JSON.parse(savedTasks).map((task: any) => ({
         ...task,
         createdAt: new Date(task.createdAt),
-        completedAt: task.completedAt ? new Date(task.completedAt) : undefined
+        completedAt: task.completedAt ? new Date(task.completedAt) : undefined,
+        startDate: task.startDate ? new Date(task.startDate) : undefined,
+        endDate: task.endDate ? new Date(task.endDate) : undefined,
+        startTime: task.startTime ?? undefined,
+        endTime: task.endTime ?? undefined,
       }));
       setTasks(parsedTasks);
     }
@@ -91,11 +113,19 @@ const TodoApp = () => {
       completed: false,
       category: selectedCategory,
       priority: selectedPriority,
-      createdAt: new Date()
+      createdAt: new Date(),
+      startDate,
+      endDate,
+      startTime: startTime || undefined,
+      endTime: endTime || undefined,
     };
 
     setTasks(prev => [newTaskObj, ...prev]);
     setNewTask('');
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setStartTime("");
+    setEndTime("");
     
     toast({
       title: "Task Added! 📝",
@@ -137,25 +167,7 @@ const TodoApp = () => {
         newStreak = 1; // Reset streak
       }
 
-      // Check for badges
-      const newBadges = [...prev.badges];
-      const currentHour = new Date().getHours();
-      
-      if (currentHour < 9 && !newBadges.includes('Early Bird')) {
-        newBadges.push('Early Bird');
-        toast({
-          title: "🌅 Badge Unlocked!",
-          description: "Early Bird - Completed task before 9 AM!"
-        });
-      }
-      
-      if (newStreak >= 7 && !newBadges.includes('Week Warrior')) {
-        newBadges.push('Week Warrior');
-        toast({
-          title: "🔥 Badge Unlocked!",
-          description: "Week Warrior - 7 day streak!"
-        });
-      }
+      // Badge feature removed
 
       if (leveledUp) {
         setShowConfetti(true);
@@ -176,7 +188,7 @@ const TodoApp = () => {
         level: newLevel,
         streak: newStreak,
         lastTaskDate: currentDate,
-        badges: newBadges
+        badges: prev.badges
       };
     });
   };
@@ -252,9 +264,12 @@ const TodoApp = () => {
   };
 
   const currentXPProgress = ((userStats.xp % 100) / 100) * 100;
+  const allCount = tasks.length;
+  const ongoingCount = tasks.filter(t => !t.completed).length;
+  const finishedCount = tasks.filter(t => t.completed).length;
 
   return (
-    <div className="min-h-screen bg-background p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-background p-0 md:p-4 relative overflow-hidden animated-gradient">
       {/* Background decoration */}
       <div className="fixed inset-0 opacity-5 pointer-events-none">
         <div className="absolute top-20 left-20 w-64 h-64 bg-primary rounded-full blur-3xl"></div>
@@ -262,7 +277,7 @@ const TodoApp = () => {
       </div>
 
       {/* Confetti effect */}
-      {showConfetti && (
+      {settings.enableConfetti && showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50">
           {[...Array(20)].map((_, i) => (
             <div
@@ -278,17 +293,35 @@ const TodoApp = () => {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto relative z-10">
-        {/* Header with stats */}
-        <div className="text-center mb-8">
+      <ResponsiveSidebar>
+      <div className="max-w-4xl mx-auto relative z-10 px-3 md:px-0">
+        {/* Background */}
+        <AnimatedBackground />
+
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <div className="flex items-center gap-2">
+            <ListTodo className="h-5 w-5 text-primary" />
+            <span className="font-semibold">Your Tasks</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <SettingsMenu onChange={setSettings} />
+            <ThemeSwitcher />
+            <AuthButtons />
+          </div>
+        </div>
+
+        {/* Header with stats */
+        }
+        <div className="text-center mb-8 fade-in-up">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Gamified Todo
+            Gamified To-Do List
           </h1>
-          <p className="text-muted-foreground">Turn your productivity into an adventure!</p>
+          <p className="text-muted-foreground">Turn your Productivity Time into an Adventure!</p>
         </div>
 
         {/* User Stats Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="bg-card/80 backdrop-blur-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -330,23 +363,7 @@ const TodoApp = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/80 backdrop-blur-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Badges</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-1 flex-wrap">
-                {userStats.badges.map(badge => (
-                  <Badge key={badge} variant="secondary" className="text-xs badge-unlock">
-                    {badge === 'Early Bird' ? '🌅' : '🔥'} {badge}
-                  </Badge>
-                ))}
-                {userStats.badges.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Complete tasks to earn badges!</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Badges removed */}
         </div>
 
         {/* Add Task Section */}
@@ -354,7 +371,7 @@ const TodoApp = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" />
-              Add New Task
+              New Task
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -382,15 +399,20 @@ const TodoApp = () => {
             <div className="flex gap-2 flex-wrap">
               <div className="flex gap-1">
                 <span className="text-sm font-medium text-muted-foreground">Category:</span>
-                {(['work', 'personal', 'shopping'] as const).map(cat => (
+                {([
+                  { key: 'work', label: 'Work' },
+                  { key: 'personal', label: 'Personal' },
+                  { key: 'shopping', label: 'Shopping' },
+                  { key: 'other', label: 'Other Option' },
+                ] as const).map(({ key, label }) => (
                   <Button
-                    key={cat}
-                    variant={selectedCategory === cat ? "default" : "outline"}
+                    key={key}
+                    variant={selectedCategory === key ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setSelectedCategory(cat)}
+                    onClick={() => setSelectedCategory(key as Task['category'])}
                     className="capitalize"
                   >
-                    {cat}
+                    {label}
                   </Button>
                 ))}
               </div>
@@ -408,6 +430,42 @@ const TodoApp = () => {
                     {priority} (+{getXPForTask(priority)} XP)
                   </Button>
                 ))}
+              </div>
+
+              <div className="flex flex-wrap gap-3 items-center">
+                <span className="text-sm font-medium text-muted-foreground">Start:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      {startDate ? startDate.toLocaleDateString() : 'Start date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="p-0">
+                    <Calendar mode="single" selected={startDate} onSelect={setStartDate} />
+                  </PopoverContent>
+                </Popover>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-32" />
+                </div> 
+
+                <span className="ml-2 text-sm font-medium text-muted-foreground">End:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      {endDate ? endDate.toLocaleDateString() : 'End date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="p-0">
+                    <Calendar mode="single" selected={endDate} onSelect={setEndDate} />
+                  </PopoverContent>
+                </Popover>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                    <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}  className="w-32" /> 
+                </div>
               </div>
             </div>
           </CardContent>
@@ -445,88 +503,150 @@ const TodoApp = () => {
           )}
         </Card>
 
-        {/* Tasks List */}
-        <div className="space-y-4">
+        {/* Tasks List - separated by category */}
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Your Tasks</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold title-glow">Your Tasks</h2>
+              <div className="flex gap-1">
+                <Button
+                  variant={taskFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskFilter('all')}
+                >
+                  All ({allCount})
+                </Button>
+                <Button
+                  variant={taskFilter === 'ongoing' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskFilter('ongoing')}
+                >
+                  Ongoing ({ongoingCount})
+                </Button>
+                <Button
+                  variant={taskFilter === 'finished' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskFilter('finished')}
+                >
+                  Finished ({finishedCount})
+                </Button>
+              </div>
+            </div>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
               <Share2 className="h-4 w-4" />
               Share List
             </Button>
           </div>
 
-          {tasks.length === 0 ? (
-            <Card className="bg-card/80 backdrop-blur-sm">
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground mb-4">No tasks yet! Add your first task to start earning XP.</p>
-                <Button onClick={() => addTask("Complete my first task!")} variant="outline">
-                  Add Sample Task
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {tasks.map(task => (
-                <Card
-                  key={task.id}
-                  className={`bg-card/80 backdrop-blur-sm transition-all duration-300 ${
-                    task.completed ? 'opacity-60 task-complete-glow' : 'hover:shadow-md'
-                  }`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant={task.completed ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => !task.completed && completeTask(task.id)}
-                        className={task.completed ? "task-complete" : ""}
-                        disabled={task.completed}
-                      >
-                        ✓
-                      </Button>
-                      
-                      <div className="flex-1">
-                        <p className={`${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                          {task.text}
-                        </p>
-                        <div className="flex gap-2 mt-1">
-                          <Badge
-                            variant="secondary"
-                            className={`text-xs ${{
-                              work: 'bg-category-work/20 text-category-work border-category-work/30',
-                              personal: 'bg-category-personal/20 text-category-personal border-category-personal/30',
-                              shopping: 'bg-category-shopping/20 text-category-shopping border-category-shopping/30'
-                            }[task.category]}`}
-                          >
-                            {task.category}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${{
-                              high: 'border-priority-high text-priority-high',
-                              medium: 'border-priority-medium text-priority-medium',
-                              low: 'border-priority-low text-priority-low'
-                            }[task.priority]}`}
-                          >
-                            {task.priority} • {getXPForTask(task.priority)} XP
-                          </Badge>
-                        </div>
-                      </div>
+          {([
+            { key: 'work', label: 'Work' },
+            { key: 'personal', label: 'Personal' },
+            { key: 'shopping', label: 'Shopping' },
+            { key: 'other', label: 'Other Option' },
+          ] as const).map(({ key, label }) => {
+            const categoryTasks = tasks.filter((t) => t.category === (key as Task['category']))
+            const filteredCategoryTasks = categoryTasks.filter((t) =>
+              taskFilter === 'all' ? true : taskFilter === 'ongoing' ? !t.completed : t.completed
+            )
+            const emptyText = taskFilter === 'all'
+              ? 'No tasks in this category yet.'
+              : taskFilter === 'ongoing'
+              ? 'No ongoing tasks in this category.'
+              : 'No finished tasks in this category.'
+            return (
+              <div key={key} className="space-y-3 fade-in-up">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-medium">{label}</h3>
+                  <Badge variant="secondary" className="text-xs">
+                    {filteredCategoryTasks.length}
+                  </Badge>
+                </div>
 
-                      {task.completed && (
-                        <div className="text-right text-xs text-muted-foreground">
-                          <p>+{getXPForTask(task.priority)} XP</p>
-                          <p>{task.completedAt?.toLocaleTimeString()}</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                {filteredCategoryTasks.length === 0 ? (
+                  <Card className="bg-card/80 backdrop-blur-sm">
+                    <CardContent className="p-6 text-sm text-muted-foreground">
+                      {emptyText}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredCategoryTasks.map((task) => (
+                      <Card
+                        key={task.id}
+                        className={`bg-card/80 backdrop-blur-sm transition-all duration-300 lift ${
+                          task.completed ? 'task-complete-glow' : 'hover:shadow-md'
+                        }`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant={task.completed ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => !task.completed && completeTask(task.id)}
+                              className={task.completed ? 'task-complete' : ''}
+                              disabled={task.completed}
+                            >
+                              ✓
+                            </Button>
+
+                            <div className="flex-1">
+                              <p className="">
+                                {task.text}
+                              </p>
+                              <div className="flex gap-2 mt-1">
+                                <Badge
+                                  variant="secondary"
+                                  className={`text-xs ${{
+                                    work: 'bg-category-work/20 text-category-work border-category-work/30',
+                                    personal: 'bg-category-personal/20 text-category-personal border-category-personal/30',
+                                    shopping: 'bg-category-shopping/20 text-category-shopping border-category-shopping/30',
+                                    other: 'bg-category-other/20 text-category-other border-category-other/30',
+                                  }[task.category]}`}
+                                >
+                                  {label}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs ${{
+                                    high: 'border-priority-high text-priority-high',
+                                    medium: 'border-priority-medium text-priority-medium',
+                                    low: 'border-priority-low text-priority-low',
+                                  }[task.priority]}`}
+                                >
+                                  {task.priority} • {getXPForTask(task.priority)} XP
+                                </Badge>
+                                {(task.startDate || task.endDate || task.startTime || task.endTime) && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {task.startDate ? new Date(task.startDate).toLocaleDateString() : '—'}
+                                    {task.startTime ? ` ${task.startTime}` : ''}
+                                    {" "}-{" "}
+                                    {task.endDate ? new Date(task.endDate).toLocaleDateString() : '—'}
+                                    {task.endTime ? ` ${task.endTime}` : ''}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            {task.completed && (
+                              <div className="text-right text-xs text-muted-foreground">
+                                <p className="font-medium text-success">Completed</p>
+                                <p>+{getXPForTask(task.priority)} XP</p>
+                                <p>{task.completedAt?.toLocaleTimeString()}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
+      </ResponsiveSidebar>
+      <ProfileModal />
     </div>
   );
 };

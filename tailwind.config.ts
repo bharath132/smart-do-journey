@@ -69,7 +69,8 @@ export default {
 				category: {
 					work: 'hsl(var(--category-work))',
 					personal: 'hsl(var(--category-personal))',
-					shopping: 'hsl(var(--category-shopping))'
+          shopping: 'hsl(var(--category-shopping))',
+          other: 'hsl(var(--category-other))'
 				},
 				xp: {
 					bar: 'hsl(var(--xp-bar))',

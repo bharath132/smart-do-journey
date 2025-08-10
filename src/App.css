@@ -1,42 +1,76 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* App-level animations and ambient effects */
+
+/* Animated soft gradient background for the main page container */
+.animated-gradient {
+  position: relative;
+  isolation: isolate;
+}
+.animated-gradient::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  background: radial-gradient(60% 60% at 20% 20%, hsl(var(--primary)/0.12), transparent 60%),
+    radial-gradient(50% 50% at 80% 30%, hsl(var(--accent)/0.12), transparent 60%),
+    radial-gradient(40% 40% at 50% 80%, hsl(var(--secondary)/0.12), transparent 60%);
+  filter: blur(40px) saturate(120%);
+  animation: float-blobs 18s ease-in-out infinite alternate;
+  z-index: -1;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+@keyframes float-blobs {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-2%, -1%, 0) scale(1.05);
+  }
+  100% {
+    transform: translate3d(2%, 1%, 0) scale(1.03);
+  }
 }
 
-@keyframes logo-spin {
+/* Subtle fade/slide for section headers and cards */
+.fade-in-up {
+  animation: fadeInUp 500ms var(--smooth-ease);
+}
+@keyframes fadeInUp {
   from {
-    transform: rotate(0deg);
+    opacity: 0;
+    transform: translateY(8px);
   }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+/* Hover lift effect */
+.lift:hover {
+  transform: translateY(-2px);
+  transition: transform 200ms var(--smooth-ease), box-shadow 200ms var(--smooth-ease);
+  box-shadow: 0 10px 24px -12px hsl(var(--ring)/0.35);
+}
+
+/* Pulse glow utility (can be used for important buttons) */
+.pulse-glow {
+  animation: pulseGlow 1.8s ease-in-out infinite;
+}
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary)/0.0), 0 0 0 0 hsl(var(--primary)/0.0);
+  }
+  50% {
+    box-shadow: 0 0 0 8px hsl(var(--primary)/0.08), 0 0 0 16px hsl(var(--primary)/0.04);
   }
 }
 
-.card {
-  padding: 2em;
+/* Fancy heading glow */
+.title-glow {
+  text-shadow: 0 0 10px hsl(var(--primary)/0.25), 0 0 22px hsl(var(--primary)/0.15);
 }
 
-.read-the-docs {
-  color: #888;
+/* Card subtle border glow on hover */
+.lift:hover {
+  box-shadow: 0 10px 24px -12px hsl(var(--ring)/0.35), 0 0 0 1px hsl(var(--primary)/0.2) inset;
 }
+
