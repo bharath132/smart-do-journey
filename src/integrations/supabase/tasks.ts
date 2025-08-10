@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Task, TaskPriority } from '@/types/task';
 
 // Expected database schema for table `tasks`:
-// columns: id (uuid, pk), user_id (uuid, fk to auth.users), text (text), completed (bool),
+// columns: id (uuid, pk), user_id (uuid, fk to auth.users), text (text), description (text, nullable), completed (bool),
 // category (text), priority (text), created_at (timestamptz), completed_at (timestamptz, nullable),
 // start_date (date, nullable), end_date (date, nullable), start_time (text, nullable), end_time (text, nullable),
 // reminder_time (timestamptz, nullable)
@@ -11,6 +11,7 @@ export type TaskRow = {
   id: string;
   user_id: string;
   text: string;
+  description: string | null;
   completed: boolean;
   category: string;
   priority: TaskPriority;
@@ -27,6 +28,7 @@ function rowToTask(row: TaskRow): Task {
   return {
     id: row.id,
     text: row.text,
+    description: row.description ?? undefined,
     completed: row.completed,
     category: row.category,
     priority: row.priority,
@@ -43,6 +45,7 @@ function rowToTask(row: TaskRow): Task {
 function taskToUpdateFields(task: Task) {
   return {
     text: task.text,
+    description: task.description ?? null,
     completed: task.completed,
     category: task.category,
     priority: task.priority,

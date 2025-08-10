@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2, Calendar as CalendarIcon, Clock, ListTodo, User } from 'lucide-react';
+import { Mic, MicOff, Plus, Star, Trophy, Flame, Brain, Share2, Calendar as CalendarIcon, Clock, ListTodo, User, Sparkles } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
@@ -19,6 +19,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Task } from "@/types/task";
 import { fetchTasksForUser, insertTaskForUser, updateTaskForUser, deleteTaskForUser } from "@/integrations/supabase/tasks";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UserStats {
   xp: number;
@@ -31,6 +33,8 @@ interface UserStats {
 const TodoApp = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [isAIFilling, setIsAIFilling] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('personal');
   const [selectedPriority, setSelectedPriority] = useState<Task['priority']>('medium');
   const [userStats, setUserStats] = useState<UserStats>({
@@ -56,6 +60,7 @@ const TodoApp = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   
   const { toast } = useToast();
   const { user, isGuest } = useAuth();
@@ -168,6 +173,7 @@ const TodoApp = () => {
     const newTaskObj: Task = {
       id: crypto.randomUUID(),
       text: taskText.trim(),
+      description: newDescription.trim() || undefined,
       completed: false,
       category: selectedCategory,
       priority: selectedPriority,
@@ -189,6 +195,7 @@ const TodoApp = () => {
     }
 
     setNewTask('');
+    setNewDescription('');
     setStartDate(undefined);
     setEndDate(undefined);
     setStartTime("");
@@ -199,6 +206,31 @@ const TodoApp = () => {
       title: "Task Added! 📝",
       description: `"${taskText}" added to your ${selectedCategory} list`
     });
+  };
+
+  const aiFillFromTitle = async () => {
+    if (!newTask.trim()) {
+      toast({ title: 'Enter a title first', description: 'Type a task title, then click AI Fill' });
+      return;
+    }
+    setIsAIFilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-priority-suggestion', {
+        body: { taskText: newTask }
+      });
+      if (error) throw error;
+      if (data) {
+        setSelectedPriority(data.priority ?? selectedPriority);
+        setSelectedCategory(data.category ?? selectedCategory);
+        setNewDescription(data.description ?? newDescription);
+        toast({ title: 'AI filled fields', description: 'Description, category, and priority updated' });
+      }
+    } catch (e) {
+      console.error('AI fill error:', e);
+      toast({ title: 'AI failed', description: 'Please set fields manually' });
+    } finally {
+      setIsAIFilling(false);
+    }
   };
 
   // Add new category
@@ -273,17 +305,32 @@ const TodoApp = () => {
     });
   };
 
-  // Complete task with gamification
   const completeTask = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
-    if (!task || task.completed) return;
+    if (!task) return;
+
+    // If task is already completed, uncomplete it immediately
+    if (task.completed) {
+      uncompleteTask(taskId);
+      return;
+    }
+
+    // Show confirmation dialog for completion
+    setCompletingTaskId(taskId);
+  };
+
+  const confirmCompleteTask = () => {
+    if (!completingTaskId) return;
+    
+    const task = tasks.find(t => t.id === completingTaskId);
+    if (!task) return;
 
     const xpGained = getXPForTask(task.priority);
     const currentDate = new Date().toDateString();
     
     const updatedTask: Task = { ...task, completed: true, completedAt: new Date() };
     setTasks(prev => prev.map(t => 
-      t.id === taskId 
+      t.id === completingTaskId 
         ? updatedTask
         : t
     ));
@@ -338,6 +385,47 @@ const TodoApp = () => {
         badges: prev.badges
       };
     });
+
+    setCompletingTaskId(null);
+  };
+
+  const uncompleteTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.completed) return;
+
+    const updatedTask: Task = { ...task, completed: false, completedAt: undefined };
+    setTasks(prev => prev.map(t => 
+      t.id === taskId 
+        ? updatedTask
+        : t
+    ));
+
+    // Remove XP and update stats when unchecking
+    const xpToRemove = getXPForTask(task.priority);
+    setUserStats(prev => {
+      const newXP = Math.max(0, prev.xp - xpToRemove); // Don't go below 0 XP
+      const newLevel = Math.floor(newXP / 100) + 1;
+      const leveledDown = newLevel < prev.level;
+
+      return {
+        xp: newXP,
+        level: newLevel,
+        streak: prev.streak, // Keep streak unchanged
+        lastTaskDate: prev.lastTaskDate, // Keep last task date unchanged
+        badges: prev.badges
+      };
+    });
+
+    if (user && !isGuest) {
+      updateTaskForUser(user.id, updatedTask).catch((e) => {
+        console.error('Failed to uncomplete task:', e);
+      });
+    }
+
+    toast({
+      title: "Task Uncompleted",
+      description: `-${xpToRemove} XP removed. Task marked as ongoing again.`
+    });
   };
 
   // Voice input setup
@@ -389,24 +477,38 @@ const TodoApp = () => {
   // AI Suggestions based on time
   const getAISuggestions = () => {
     const hour = new Date().getHours();
+    const pick3 = (arr: string[]) => {
+      const copy = [...arr];
+      copy.sort(() => Math.random() - 0.5);
+      return copy.slice(0, 3);
+    };
     if (hour < 12) {
-      return [
-        "Review your goals for today",
+      return pick3([
+        "Review today's goals",
         "Plan your morning routine",
-        "Check important emails"
-      ];
+        "Check important emails",
+        "Do a 10-minute stretch",
+        "Outline top 3 tasks",
+        "Clean inbox to zero",
+      ]);
     } else if (hour < 17) {
-      return [
+      return pick3([
         "Take a 15-minute break",
         "Follow up on pending tasks",
-        "Prepare for tomorrow"
-      ];
+        "Prepare for tomorrow",
+        "Deep work session (25 min)",
+        "Sync with a teammate",
+        "Organize your workspace",
+      ]);
     } else {
-      return [
+      return pick3([
         "Reflect on today's achievements",
-        "Plan tomorrow's priorities", 
-        "Wind down with a good book"
-      ];
+        "Plan tomorrow's priorities",
+        "Wind down with a good book",
+        "Prepare clothes for tomorrow",
+        "Do a quick tidy-up",
+        "Set a sleep reminder",
+      ]);
     }
   };
 
@@ -551,7 +653,7 @@ const TodoApp = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-start">
               <Input
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
@@ -559,6 +661,9 @@ const TodoApp = () => {
                 onKeyPress={(e) => e.key === 'Enter' && addTask(newTask)}
                 className="flex-1"
               />
+              <Button type="button" variant="outline" onClick={aiFillFromTitle} disabled={isAIFilling} className="shrink-0">
+                <Sparkles className="h-4 w-4 mr-1" /> {isAIFilling ? 'Filling...' : 'AI Fill'}
+              </Button>
               <Button
                 onClick={toggleVoiceInput}
                 variant={isRecording ? "destructive" : "outline"}
@@ -570,6 +675,14 @@ const TodoApp = () => {
               <Button onClick={() => addTask(newTask)} className="px-6">
                 Add Task
               </Button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Textarea
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Add a short description (optional)"
+              />
             </div>
 
             <div className="flex gap-2 flex-wrap">
@@ -736,7 +849,7 @@ const TodoApp = () => {
                 </Button>
               </div>
               
-              <div className="flex gap-1">
+              <div className="flex gap-1 items-center">
                 <span className="text-sm font-medium text-muted-foreground">Category:</span>
                 <Button
                   variant={categoryFilter === 'all' ? 'default' : 'outline'}
@@ -758,7 +871,7 @@ const TodoApp = () => {
                 ))}
               </div>
               
-              <div className="flex gap-1">
+              <div className="flex gap-1 items-center">
                 <span className="text-sm font-medium text-muted-foreground">Priority:</span>
                 <Button
                   variant={priorityFilter === 'all' ? 'default' : 'outline'}
@@ -799,21 +912,48 @@ const TodoApp = () => {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <Button
-                        variant={task.completed ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => !task.completed && completeTask(task.id)}
-                        className={task.completed ? 'task-complete' : ''}
-                        disabled={task.completed}
-                      >
-                        ✓
-                      </Button>
+                      <div className="flex flex-col items-center gap-1">
+                        {task.completed && (
+                          <div className="text-xs text-red-500 font-medium bg-red-50 px-2 py-1 rounded-full border border-red-200">
+                            ⚠️ -{getXPForTask(task.priority)} XP
+                          </div>
+                        )}
+                        <Button
+                          variant={task.completed ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => completeTask(task.id)}
+                          className={`${
+                            task.completed 
+                              ? 'bg-green-600 hover:bg-red-500 hover:border-red-500 focus:ring-red-500 hover:scale-110 shadow-lg' 
+                              : 'hover:bg-green-100 hover:border-green-500 focus:ring-green-500 hover:scale-110'
+                          } transition-all duration-200 border-2 focus:ring-2 focus:ring-offset-2 transform min-w-[32px] h-[32px] p-0`}
+                          disabled={completingTaskId === task.id}
+                          title={task.completed ? 'Click to uncheck task (-XP)' : 'Click to complete task (+XP)'}
+                        >
+                          <span className="text-sm font-bold">
+                            {task.completed ? '✓' : '○'}
+                          </span>
+                        </Button>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          {task.completed ? (
+                            <>
+                              <span className="text-red-500">●</span>
+                              Uncheck (-{getXPForTask(task.priority)} XP)
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-green-500">●</span>
+                              Complete (+{getXPForTask(task.priority)} XP)
+                            </>
+                          )}
+                        </span>
+                      </div>
 
                       <div className="flex-1">
-                        <p className="">
+                        <p className={`${task.completed ? 'line-through text-muted-foreground' : ''}`}>
                           {task.text}
                         </p>
-                        <div className="flex gap-2 mt-1 flex-wrap">
+                        <div className="flex gap-2 mt-1 flex-wrap items-center">
                           <Badge
                             variant="secondary"
                             className="text-xs capitalize bg-primary/10 text-primary border-primary/20"
@@ -847,6 +987,9 @@ const TodoApp = () => {
                             </Badge>
                           )}
                         </div>
+                        {task.description && (
+                          <p className="text-sm text-muted-foreground mt-2">{task.description}</p>
+                        )}
                       </div>
 
                       <div className="flex gap-2">
@@ -917,6 +1060,31 @@ const TodoApp = () => {
               onClick={confirmDeleteTask}
             >
               Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complete Task Confirmation Dialog */}
+      <Dialog open={!!completingTaskId} onOpenChange={(open) => !open && setCompletingTaskId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Task</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to mark this task as completed? You'll gain XP and can uncheck it later if needed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => setCompletingTaskId(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmCompleteTask}
+            >
+              Complete Task
             </Button>
           </div>
         </DialogContent>

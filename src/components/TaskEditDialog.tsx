@@ -16,6 +16,7 @@ import { Calendar as CalendarIcon, Clock, Brain, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Task } from "@/types/task";
+import { Textarea } from "@/components/ui/textarea";
 
 interface TaskEditDialogProps {
   task: Task | null;
@@ -52,8 +53,8 @@ export default function TaskEditDialog({
   const getAIPrioritySuggestion = async () => {
     if (!editedTask?.text.trim()) {
       toast({
-        title: "Enter task text first",
-        description: "Please add task text before getting AI suggestion"
+        title: "Enter task title first",
+        description: "Please add task title before getting AI suggestion"
       });
       return;
     }
@@ -66,18 +67,23 @@ export default function TaskEditDialog({
 
       if (error) throw error;
 
-      if (data?.priority) {
-        setEditedTask(prev => prev ? { ...prev, priority: data.priority } : null);
+      if (data) {
+        setEditedTask(prev => prev ? { 
+          ...prev, 
+          priority: data.priority ?? prev.priority,
+          category: data.category ?? prev.category,
+          description: data.description ?? prev.description,
+        } : null);
         toast({
           title: "AI Suggestion Applied! 🤖",
-          description: `Priority set to ${data.priority} based on AI analysis`
+          description: `Updated fields from AI analysis`
         });
       }
     } catch (error) {
       console.error('AI suggestion error:', error);
       toast({
         title: "AI suggestion failed",
-        description: "Please select priority manually"
+        description: "Please edit fields manually"
       });
     } finally {
       setIsLoadingAI(false);
@@ -92,13 +98,13 @@ export default function TaskEditDialog({
         <DialogHeader>
           <DialogTitle>Edit Task</DialogTitle>
           <DialogDescription>
-            Update your task details and get AI priority suggestions
+            Update your task details and get AI suggestions
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="task-text">Task</Label>
+            <Label htmlFor="task-text">Title</Label>
             <Input
               id="task-text"
               value={editedTask.text}
@@ -107,27 +113,20 @@ export default function TaskEditDialog({
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="task-desc">Description</Label>
+            <Textarea
+              id="task-desc"
+              value={editedTask.description || ''}
+              onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
+              placeholder="Add more details..."
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Category</Label>
-              <div className="flex gap-1 flex-wrap">
-                {customCategories.map((category) => (
-                  <Button
-                    key={category}
-                    variant={editedTask.category === category ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setEditedTask({ ...editedTask, category })}
-                    className="capitalize"
-                  >
-                    {category}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Label>Priority</Label>
+                <Label>Category</Label>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -143,7 +142,24 @@ export default function TaskEditDialog({
                   AI Suggest
                 </Button>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap items-center">
+                {customCategories.map((category) => (
+                  <Button
+                    key={category}
+                    variant={editedTask.category === category ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setEditedTask({ ...editedTask, category })}
+                    className="capitalize"
+                  >
+                    {category}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <div className="flex gap-1 items-center">
                 {(['high', 'medium', 'low'] as const).map(priority => (
                   <Button
                     key={priority}
@@ -162,7 +178,7 @@ export default function TaskEditDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Start Date & Time</Label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2">
@@ -192,7 +208,7 @@ export default function TaskEditDialog({
 
             <div className="space-y-2">
               <Label>End Date & Time</Label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="flex items-center gap-2">

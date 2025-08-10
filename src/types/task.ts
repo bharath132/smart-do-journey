@@ -3,6 +3,7 @@ export type TaskPriority = 'high' | 'medium' | 'low';
 export interface Task {
   id: string;
   text: string;
+  description?: string;
   completed: boolean;
   category: string;
   priority: TaskPriority;
