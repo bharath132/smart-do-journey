@@ -13,12 +13,14 @@ import SettingsMenu, { type AppSettings } from "@/components/SettingsMenu";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import ProfileModal from "@/components/ProfileModal";
 import ResponsiveSidebar from "@/components/ResponsiveSidebar";
+import BlastEffect from "@/components/BlastEffect";
 import TaskEditDialog from "@/components/TaskEditDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Task } from "@/types/task";
 import { fetchTasksForUser, insertTaskForUser, updateTaskForUser, deleteTaskForUser } from "@/integrations/supabase/tasks";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface UserStats {
   xp: number;
@@ -56,6 +58,7 @@ const TodoApp = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [blastByTask, setBlastByTask] = useState<Record<string, { key: number; variant: 'success' | 'danger' }>>({});
   
   const { toast } = useToast();
   const { user, isGuest } = useAuth();
@@ -336,6 +339,37 @@ const TodoApp = () => {
         streak: newStreak,
         lastTaskDate: currentDate,
         badges: prev.badges
+      };
+    });
+  };
+
+  // Add uncompleteTask function
+  const uncompleteTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.completed) return;
+
+    const xpLost = getXPForTask(task.priority);
+    const updatedTask: Task = { ...task, completed: false, completedAt: undefined };
+    setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
+
+    if (user && !isGuest) {
+      updateTaskForUser(user.id, updatedTask).catch((e) => {
+        console.error('Failed to mark task incomplete:', e);
+      });
+    }
+
+    setUserStats(prev => {
+      const newXP = Math.max(0, prev.xp - xpLost);
+      const newLevel = Math.floor(newXP / 100) + 1;
+      // Streak logic: do not change streak or lastTaskDate on uncheck
+      toast({
+        title: "Task Unchecked!",
+        description: `-${xpLost} XP removed!`
+      });
+      return {
+        ...prev,
+        xp: newXP,
+        level: newLevel,
       };
     });
   };
@@ -802,15 +836,35 @@ const TodoApp = () => {
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <Button
-                        variant={task.completed ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => !task.completed && completeTask(task.id)}
-                        className={task.completed ? 'task-complete' : ''}
-                        disabled={task.completed}
-                      >
-                        ✓
-                      </Button>
+                      <div className="relative inline-flex items-center justify-center h-5 w-5">
+                        <Checkbox
+                          checked={task.completed}
+                          onCheckedChange={(checked) => {
+                            setBlastByTask(prev => ({
+                              ...prev,
+                              [task.id]: { key: Date.now(), variant: checked ? 'success' : 'danger' }
+                            }));
+                            if (checked) {
+                              completeTask(task.id);
+                            } else {
+                              uncompleteTask(task.id);
+                            }
+                          }}
+                          className={task.completed ? 'task-complete' : ''}
+                        />
+                        {blastByTask[task.id] && (
+                          <BlastEffect
+                            key={blastByTask[task.id].key}
+                            variant={blastByTask[task.id].variant}
+                            onDone={() => {
+                              setBlastByTask(prev => {
+                                const { [task.id]: _omit, ...rest } = prev;
+                                return rest;
+                              });
+                            }}
+                          />
+                        )}
+                      </div>
 
                       <div className="flex-1">
                         <p className="">
